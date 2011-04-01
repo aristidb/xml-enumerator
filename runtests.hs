@@ -62,7 +62,9 @@ t1 = fmap concat $ sequence [
             ],
         describe "Process nested iteratees. (Launch missiles?..)" [
                   it "can run nested iteratees for siblings. E.g. to render text" testProcSib
+                , it "can run nested iteratees for siblings. With EL.consume" testProcSib2
                 , it "can run nested iteratees for next element" testProcElem
+                , it "can run nested iteratees for next element. With EL.consume" testProcElem2
             ]
     ]
     where
@@ -72,8 +74,12 @@ t1 = fmap concat $ sequence [
         testTag = testI (P.tagNoAttr "root" $ P.skipTill $ P.tagNoAttr "E2" P.contentMaybe) testData
         testProcSib = join $ fmap (@?=("<E0><E1><E11/><E12/></E1><E3/></E0><E2/>", [EventEndElement "root"])) $ 
                                 resI (P.processSiblings renderTextI) (drop 1 testData) 1
+        testProcSib2 = join $ fmap (@?=(init . tail $ testData, [last testData])) $ 
+                                resI (P.processSiblings EL.consume) (drop 1 testData) 1
         testProcElem = join $ fmap (@?=(Just "<E0><E1><E11/><E12/></E1><E3/></E0>", dropWhile (/=EventBeginElement "E2" mempty) testData)) $ 
                                 resI (P.processElem renderTextI) (drop 1 testData) 1
+        testProcElem2 = join $ fmap (@?=(Just (takeWhile (/=EventBeginElement "E2" mempty) (tail testData)), dropWhile (/=EventBeginElement "E2" mempty) testData)) $ 
+                                resI (P.processElem EL.consume) (drop 1 testData) 1
         renderTextI = E.joinI $ R.renderText $$ E.foldl' mappend mempty
         
         testData = [
